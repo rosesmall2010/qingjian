@@ -84,9 +84,13 @@ impl Router {
                 }
                 None
             }
-            ClientMessage::ModeChanged { session, english } => {
-                tracing::debug!(?session, english, "中英模式");
-                self.handle_mode_changed(english);
+            ClientMessage::ModeChanged {
+                session,
+                english,
+                plain,
+            } => {
+                tracing::debug!(?session, english, plain, "中英模式");
+                self.handle_mode_changed(english, plain);
                 None
             }
             ClientMessage::SyncMode { session } => {
@@ -94,6 +98,7 @@ impl Router {
                 Some(ServerMessage::ModeSync {
                     session,
                     english: Some(self.english),
+                    plain: self.plain,
                     input: self.input_settings(),
                     indicator: self.indicator_state(),
                 })

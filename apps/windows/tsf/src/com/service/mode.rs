@@ -27,13 +27,23 @@ impl TextService_Impl {
     ///
     /// 内置英文模式开关在运行中翻转时，语言栏的中 / 英按钮与转换模式回调跟着登记 / 撤掉（激活时由 `Activate`
     /// 自己按开关登记，这里只管激活之后的变化），设置窗口改完不用切走再切回输入法。
-    pub(super) fn apply_mode_settings(&self, english_mode: bool, switch_keys: SwitchKeys) {
+    pub(super) fn apply_mode_settings(
+        &self,
+        english_mode: bool,
+        switch_keys: SwitchKeys,
+        right_shift: bool,
+    ) {
         let was_enabled = self.mode_state.enabled();
-        self.mode_state.set_settings(english_mode, switch_keys);
+        self.mode_state
+            .set_settings(english_mode, switch_keys, right_shift);
         // 关掉内置英文模式时立刻回中文，别停在一个再也切不回去的英文状态（Server 那份也跟着回中文）。
         if !english_mode && self.mode_state.english() {
             self.mode_state.set_english(false);
             self.refresh_mode_indicator();
+        }
+        // 关掉右 Shift 纯英文同理：退回普通英文模式
+        if !right_shift && self.mode_state.plain() {
+            self.mode_state.set_english(true);
         }
         if was_enabled != english_mode && self.is_active() {
             if english_mode {
@@ -62,12 +72,17 @@ impl TextService_Impl {
         }
         self.input_settings.set(Some(input));
         log(&format!(
-            "按键行为设置：中英切换键 {}，内置英文模式 {}，Shift 字母进组句 {}",
+            "按键行为设置：中英切换键 {}，内置英文模式 {}，Shift 字母进组句 {}，右 Shift 纯英文 {}",
             input.switch_mode.describe(),
             input.english_mode,
-            input.shift_letter_compose
+            input.shift_letter_compose,
+            input.right_shift_english
         ));
-        self.apply_mode_settings(input.english_mode, input.switch_mode);
+        self.apply_mode_settings(
+            input.english_mode,
+            input.switch_mode,
+            input.right_shift_english,
+        );
     }
 
     /// Ctrl + Alt + Space 是组合键、走 TSF 保留键（与「翻译选中文字」同一套）；没勾就撤掉登记，免得白占着。
@@ -104,15 +119,25 @@ impl TextService_Impl {
 
     /// 用户在这个应用里切了模式（切换键、语言栏按钮、右键菜单）：改状态、刷指示器，报给 Server 成为全局模式。
     pub(super) fn set_english_mode(&self, english: bool) {
-        if self.switch_mode(english) {
+        if self.switch_mode(english, false) {
+            self.refresh_mode_indicator();
+            self.report_mode();
+        }
+    }
+
+    /// 单击右 Shift：进出纯英文（不吃任何键，标点也是英文半角）；退出回中文。
+    pub(super) fn toggle_plain_english(&self) {
+        let plain = !self.mode_state.plain();
+        if self.switch_mode(plain, plain) {
             self.refresh_mode_indicator();
             self.report_mode();
         }
     }
 
     /// 跟上 Server 的全局模式（别的应用切过、点了悬浮状态条）：改状态、刷指示器，不再回报。
-    pub(super) fn adopt_mode(&self, english: bool) {
-        if english != self.mode_state.english() && self.switch_mode(english) {
+    pub(super) fn adopt_mode(&self, english: bool, plain: bool) {
+        let changed = english != self.mode_state.english() || plain != self.mode_state.plain();
+        if changed && self.switch_mode(english, plain) {
             self.refresh_mode_indicator();
         }
     }
@@ -129,7 +154,7 @@ impl TextService_Impl {
                 self.apply_input_settings(reply.input);
                 self.indicator_state.set(reply.indicator);
                 if let Some(english) = reply.english {
-                    self.adopt_mode(english);
+                    self.adopt_mode(english, reply.plain);
                 }
             }
             Some(Err(error)) => {
@@ -143,7 +168,7 @@ impl TextService_Impl {
     /// 用户点了任务栏中 / 英、按了系统 Ctrl + Space：只更新按钮，不回写 compartment（在它自己的 `OnChange` 里写会报
     /// 0x8000FFFF），报给 Server。
     fn follow_system_mode(&self, english: bool) {
-        if self.switch_mode(english) {
+        if self.switch_mode(english, false) {
             self.mode_state.notify();
             self.report_mode();
         }
@@ -153,7 +178,7 @@ impl TextService_Impl {
     ///
     /// 配置关掉了内置英文模式时什么都不做——切换键、语言栏按钮、悬浮状态条、任务栏转换模式四条入口
     /// 都汇到这里，一处拦住就再也进不了英文模式（见 issue #81）。
-    fn switch_mode(&self, english: bool) -> bool {
+    fn switch_mode(&self, english: bool, plain: bool) -> bool {
         if !self.mode_state.enabled() {
             if english {
                 log("内置英文模式已关闭，忽略切到英文");
@@ -161,11 +186,11 @@ impl TextService_Impl {
             return false;
         }
         self.commit_pending();
-        self.mode_state.set_english(english);
-        log(if english {
-            "切到英文模式"
-        } else {
-            "切到中文模式"
+        self.mode_state.set_mode(english, plain);
+        log(match (english, self.mode_state.plain()) {
+            (true, true) => "切到纯英文（右 Shift）",
+            (true, false) => "切到英文模式",
+            (false, _) => "切到中文模式",
         });
         true
     }
@@ -196,8 +221,9 @@ impl TextService_Impl {
     /// 把用户切出的模式报给 Server，成为全局模式。
     pub(super) fn report_mode(&self) {
         let english = self.mode_state.english();
+        let plain = self.mode_state.plain();
         if let Some(client) = self.engine.borrow_mut().as_mut()
-            && let Err(error) = client.mode_changed(english)
+            && let Err(error) = client.mode_changed(english, plain)
         {
             log(&format!("上报中英模式失败: {error}"));
         }

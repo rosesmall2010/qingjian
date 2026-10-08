@@ -141,8 +141,8 @@ pub(super) fn on_reconnect_tick() {
 }
 
 /// 轮询取到了 Server 的全局模式（见 [`super::poll`]）；与当前相同就不动。
-pub(super) fn on_mode_sync(english: bool) {
-    with_active(|service| service.adopt_mode(english));
+pub(super) fn on_mode_sync(english: bool, plain: bool) {
+    with_active(|service| service.adopt_mode(english, plain));
 }
 
 /// 轮询取回了 Server 下发的按键行为设置（见 [`super::poll`]）：切换键 / 内置英文模式改了就地应用。

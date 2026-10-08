@@ -19,7 +19,9 @@ nlohmann::json mapKey(const fcitx::Key &key) {
     case FcitxKey_Delete: case FcitxKey_KP_Delete: code = 0x2e; break;
     case FcitxKey_KP_Insert: code = 0x2d; break;
     case FcitxKey_KP_Begin: code = 0x0c; break;
-    case FcitxKey_Shift_L: case FcitxKey_Shift_R: code = 0x10; break;
+    // 右 Shift 单独报 VK_RSHIFT：Server 用它切纯英文。
+    case FcitxKey_Shift_L: code = 0x10; break;
+    case FcitxKey_Shift_R: code = 0xa1; break;
     case FcitxKey_KP_Multiply: code = 0x6a; break;
     case FcitxKey_KP_Add: code = 0x6b; break;
     case FcitxKey_KP_Separator: code = 0x6c; break;

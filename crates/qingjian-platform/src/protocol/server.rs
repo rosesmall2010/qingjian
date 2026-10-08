@@ -24,6 +24,11 @@ pub struct InputSettings {
     /// 按住 Shift 敲的字母吃不吃：缺省交给应用，开着时送 Server 起一段组句（`⇧C` 接 `pan` 出「C盘」）。
     #[serde(default)]
     pub shift_letter_compose: bool,
+
+    /// 单击右 Shift 切纯英文（`[shortcut] right_shift_english`）。老 Server 不发这个字段时按关，
+    /// 它不认识纯英文，右 Shift 仍按 `switch_mode` 走。
+    #[serde(default)]
+    pub right_shift_english: bool,
 }
 
 impl Default for InputSettings {
@@ -32,6 +37,7 @@ impl Default for InputSettings {
             switch_mode: SwitchKeys::default(),
             english_mode: true,
             shift_letter_compose: false,
+            right_shift_english: false,
         }
     }
 }
@@ -94,6 +100,10 @@ pub enum ServerMessage {
 
         /// 全局模式：`Some(true)` 英文、`Some(false)` 中文，DLL 与自己不同就跟上；`None` 不动（老 Server 没有待切换时）。
         english: Option<bool>,
+
+        /// 英文模式是不是右 Shift 切出来的纯英文（DLL 不拦任何键）；只在 `english` 为 `Some(true)` 时有意义。
+        #[serde(default)]
+        plain: bool,
 
         /// 按键行为设置；老 DLL 不认识这个字段，读到时忽略（serde 默认忽略多余字段）。
         #[serde(default)]

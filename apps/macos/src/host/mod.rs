@@ -116,6 +116,15 @@ pub struct Host {
     /// 配数字键删候选的修饰键（配置 `[shortcut] delete_candidate`）。
     pub delete_keys: Modifiers,
 
+    /// 单击右 Shift 切纯英文（配置 `[shortcut] right_shift_english`）。
+    pub right_shift_english: bool,
+
+    /// 正在纯英文里：按键一律交还应用，字母与标点原样输入。所有应用共用。
+    pub plain_english: bool,
+
+    /// 右 Shift 按下后还没插进别的键，抬起就算一次单击。
+    pub right_shift_pending: bool,
+
     /// 候选窗口顶行显示的一句临时状态（删了什么词），下一次查询就没了。
     pub status: Option<String>,
 

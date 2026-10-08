@@ -20,6 +20,7 @@ use crate::menubar;
 mod command;
 mod commit;
 mod display;
+mod plain;
 mod text;
 mod translate;
 
@@ -66,6 +67,12 @@ define_class!(
                 }
                 _ => false,
             }
+        }
+
+        /// 要 IMK 送来哪些事件，见 [`plain::recognized_events`]。
+        #[unsafe(method(recognizedEvents:))]
+        fn recognized_events(&self, _sender: Option<&AnyObject>) -> usize {
+            plain::recognized_events()
         }
 
         /// 应用要求立刻结束本次输入（切换焦点、切换输入法等）。
@@ -192,8 +199,29 @@ impl QingjianInputController {
     }
 
     /// 一个按键事件的分发：只管按下；Cmd / Ctrl 组合除 Cmd+左右外一律交给应用；命令键映射成选择器；其余按字符当文本。
+    /// 修饰键变化与鼠标按下只为右 Shift 纯英文而收（见 [`plain`]），处理完照样交给应用。
     fn dispatch_event(&self, event: &NSEvent, client: TextClient<'_>) -> bool {
-        if event.r#type() != NSEventType::KeyDown || self.in_login_window() {
+        if self.in_login_window() {
+            return false;
+        }
+        match event.r#type() {
+            NSEventType::KeyDown => {}
+            NSEventType::FlagsChanged => {
+                self.note_flags_changed(event, client);
+                return false;
+            }
+            NSEventType::LeftMouseDown => {
+                self.note_mouse_down(client);
+                return false;
+            }
+            _ => return false,
+        }
+        let plain = host::with(|h| {
+            h.right_shift_pending = false;
+            h.plain_english
+        })
+        .unwrap_or(false);
+        if plain {
             return false;
         }
         let flags = event.modifierFlags();

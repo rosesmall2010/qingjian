@@ -8,13 +8,16 @@ use qingjian_platform::protocol::{
 use serde_json::{Value, json};
 
 pub fn router() -> Router {
+    router_with(RouterConfig::default())
+}
+pub fn router_with(config: RouterConfig) -> Router {
     let mut router = Router::new(
         Engine::new(
             Dictionary::parse("你好\tni hao\t100\n你\tni\t80\n泥\tni\t70\n拟\tni\t60\n").unwrap(),
         ),
         RouterConfig {
             page_size: 1,
-            ..Default::default()
+            ..config
         },
     );
     for id in [1, 2] {

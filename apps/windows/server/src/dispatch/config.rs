@@ -47,6 +47,9 @@ pub struct RouterConfig {
     /// 中英切换键（`[shortcut] switch_mode`）：由 Server 经协议下发给 DLL，由它认键。
     pub switch_mode: SwitchKeys,
 
+    /// 单击右 Shift 切纯英文（`[shortcut] right_shift_english`）：同样经协议下发给 DLL 认键。
+    pub right_shift_english: bool,
+
     /// 中文模式下不在组句时的标点转全角（`[general] full_width_punctuation`）；状态条可切。
     pub full_width: bool,
 
@@ -117,6 +120,7 @@ impl From<&Config> for RouterConfig {
             english_candidates: config.general.english_candidates,
             english_mode: config.general.english_mode,
             switch_mode: config.shortcut.switch_mode,
+            right_shift_english: config.shortcut.right_shift_english,
             full_width: config.general.full_width_punctuation,
             english_full_width: config.general.english_full_width_punctuation,
             zhuyin: config.general.is_zhuyin(),

@@ -14,6 +14,7 @@ fn status_bar_mode_click_changes_the_global_mode() {
     router.handle(ClientMessage::ModeChanged {
         session: SESSION,
         english: false,
+        plain: false,
     });
 
     // 点「中」：状态条翻成「英」，之后每个 DLL 来取都拿到英文（全局一份，不是取一次就清）。
@@ -37,6 +38,7 @@ fn status_bar_mode_click_is_ignored_when_builtin_english_is_off() {
     router.handle(ClientMessage::ModeChanged {
         session: SESSION,
         english: false,
+        plain: false,
     });
     assert_eq!(recorder.calls().last(), Some(&Some("中".to_owned())));
 
@@ -47,6 +49,7 @@ fn status_bar_mode_click_is_ignored_when_builtin_english_is_off() {
     router.handle(ClientMessage::ModeChanged {
         session: SESSION,
         english: true,
+        plain: false,
     });
     assert_eq!(synced_mode(&mut router, SESSION), Some(false));
 }
@@ -65,10 +68,12 @@ fn status_bar_follows_mode_when_enabled() {
     router.handle(ClientMessage::ModeChanged {
         session: SESSION,
         english: false,
+        plain: false,
     });
     router.handle(ClientMessage::ModeChanged {
         session: SESSION,
         english: true,
+        plain: false,
     });
     router.handle(ClientMessage::CloseSession { session: SESSION });
     assert_eq!(
@@ -94,6 +99,7 @@ fn status_bar_shows_shuangpin_scheme_in_chinese() {
     router.handle(ClientMessage::ModeChanged {
         session: SESSION,
         english: false,
+        plain: false,
     });
 
     assert_eq!(recorder.calls(), vec![Some("中 · 小鹤双拼".to_owned())]);
@@ -108,6 +114,7 @@ fn status_bar_stays_hidden_when_disabled() {
     router.handle(ClientMessage::ModeChanged {
         session: SESSION,
         english: false,
+        plain: false,
     });
 
     assert_eq!(recorder.calls(), vec![None]);
@@ -123,6 +130,7 @@ fn indicator_menu_toggles_status_bar() {
     router.handle(ClientMessage::ModeChanged {
         session: SESSION,
         english: false,
+        plain: false,
     });
 
     // 任务栏图标菜单里点「悬浮状态条」：关着的打开，再点收起。
@@ -151,6 +159,7 @@ fn mode_is_shared_by_every_app() {
     router.handle(ClientMessage::ModeChanged {
         session: SESSION,
         english: true,
+        plain: false,
     });
     assert_eq!(synced_mode(&mut router, other_app), Some(true));
     assert_eq!(synced_mode(&mut router, SessionId(3)), Some(true));
@@ -160,6 +169,48 @@ fn mode_is_shared_by_every_app() {
     assert_eq!(recorder.calls().last(), Some(&None));
     assert_eq!(synced_mode(&mut router, other_app), Some(true));
     assert_eq!(recorder.calls().last(), Some(&Some("英".to_owned())));
+}
+
+#[test]
+fn plain_english_is_shared_and_cleared_by_any_other_switch() {
+    let mut router = router_with(RouterConfig::default());
+    let other_app = SessionId(2);
+    // 右 Shift 切出来的纯英文：别的应用来取也是纯英文
+    router.handle(ClientMessage::ModeChanged {
+        session: SESSION,
+        english: true,
+        plain: true,
+    });
+    assert_eq!(synced_plain(&mut router, other_app), (Some(true), true));
+    // 状态条切模式：回中文，纯英文跟着清掉
+    router.handle_status_event(StatusEvent::ToggleMode);
+    assert_eq!(synced_plain(&mut router, other_app), (Some(false), false));
+    // 中文模式下报来的 plain 不算数
+    router.handle(ClientMessage::ModeChanged {
+        session: SESSION,
+        english: false,
+        plain: true,
+    });
+    assert_eq!(synced_plain(&mut router, other_app), (Some(false), false));
+    // 配置关掉右 Shift 纯英文：报来也不收
+    let mut router = router_with(RouterConfig {
+        right_shift_english: false,
+        ..RouterConfig::default()
+    });
+    router.handle(ClientMessage::ModeChanged {
+        session: SESSION,
+        english: true,
+        plain: true,
+    });
+    assert_eq!(synced_plain(&mut router, other_app), (Some(true), false));
+}
+
+/// 会话取一次 `SyncMode`，返回全局模式与纯英文标记。
+fn synced_plain(router: &mut Router, session: SessionId) -> (Option<bool>, bool) {
+    match router.handle(ClientMessage::SyncMode { session }) {
+        Some(ServerMessage::ModeSync { english, plain, .. }) => (english, plain),
+        other => panic!("SyncMode 应回 ModeSync，实际 {other:?}"),
+    }
 }
 
 /// 会话取一次 `SyncMode`，返回它拿到的全局模式。

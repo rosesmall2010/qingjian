@@ -47,6 +47,9 @@ pub enum Setting {
     /// `[shortcut] question_mark`，勾选框：没在组句时敲 `?` 也进问字。
     QuestionMark,
 
+    /// `[shortcut] right_shift_english`，勾选框：单击右 Shift 进出纯英文。
+    RightShiftEnglish,
+
     /// `[fuzzy]` 里的一条规则，值是 [`FuzzyRules::NAMES`] 的下标。
     Fuzzy(usize),
 
@@ -208,6 +211,7 @@ impl Setting {
             Self::ExpressionKey => 5,
             Self::QuestionKey => 6,
             Self::QuestionMark => 41,
+            Self::RightShiftEnglish => 57,
             Self::CloudEnabled => 7,
             Self::BaseUrl => 8,
             Self::Model => 9,
@@ -274,6 +278,7 @@ impl Setting {
             5 => Self::ExpressionKey,
             6 => Self::QuestionKey,
             41 => Self::QuestionMark,
+            57 => Self::RightShiftEnglish,
             7 => Self::CloudEnabled,
             8 => Self::BaseUrl,
             9 => Self::Model,

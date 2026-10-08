@@ -170,11 +170,13 @@ impl<S: Read + Write> EngineClient<S> {
         })? {
             ServerMessage::ModeSync {
                 english,
+                plain,
                 input,
                 indicator,
                 ..
             } => Ok(ModeSyncReply {
                 english,
+                plain,
                 input,
                 indicator,
             }),
@@ -182,11 +184,12 @@ impl<S: Read + Write> EngineClient<S> {
         }
     }
 
-    /// 把当前会话的中英模式推给 Server（悬浮状态条）。不回话。
-    pub fn mode_changed(&mut self, english: bool) -> Result<(), ClientError> {
+    /// 把当前会话的中英模式推给 Server（悬浮状态条）；`plain` 是右 Shift 切出来的纯英文。不回话。
+    pub fn mode_changed(&mut self, english: bool, plain: bool) -> Result<(), ClientError> {
         self.send(&ClientMessage::ModeChanged {
             session: self.session,
             english,
+            plain,
         })
     }
 

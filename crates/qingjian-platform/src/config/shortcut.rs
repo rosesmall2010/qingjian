@@ -16,6 +16,10 @@ pub struct ShortcutConfig {
     /// 中 / 英切换键（Windows 用），可多选：`["shift", "control", "ctrl+alt+space"]`。详见 [`SwitchKeys`]。
     pub switch_mode: SwitchKeys,
 
+    /// 单击右 Shift 切到纯英文（三个平台）：输入法不拦任何键，字母与标点原样交给应用（英文半角）；
+    /// 再单击一次回中文。开着时 `switch_mode` 里的「单击 Shift」只认左 Shift。
+    pub right_shift_english: bool,
+
     /// 数字键配这些修饰键：上屏候选的第一个译词。
     pub translation: Modifiers,
 
@@ -39,6 +43,7 @@ impl Default for ShortcutConfig {
         Self {
             mode: ModeKeys::default(),
             switch_mode: SwitchKeys::default(),
+            right_shift_english: true,
             translation,
             translation_second,
             translate_selection: KeyCombo::TRANSLATE_DEFAULT,
@@ -132,5 +137,13 @@ mod tests {
         assert_eq!(off.switch_mode, crate::SwitchKeys::NONE);
         let missing: ShortcutConfig = toml::from_str("").unwrap();
         assert_eq!(missing.switch_mode, SwitchKeys::default());
+    }
+
+    #[test]
+    fn right_shift_english_defaults_on() {
+        let missing: ShortcutConfig = toml::from_str("").unwrap();
+        assert!(missing.right_shift_english);
+        let off: ShortcutConfig = toml::from_str("right_shift_english = false\n").unwrap();
+        assert!(!off.right_shift_english);
     }
 }

@@ -74,12 +74,21 @@ impl Router {
                 }
                 self.ensure_focus(session);
                 self.notice = None;
+                let right_shift_english = self.config.right_shift_english;
                 let info = self.sessions.get_mut(&session)?;
-                let shift = event.virtual_key == 0x10;
+                // 插件把右 Shift 报成 VK_RSHIFT，其余 Shift 报成 VK_SHIFT
+                let right_shift = event.virtual_key == 0xA1;
+                let shift = event.virtual_key == 0x10 || right_shift;
                 if release {
                     if shift && info.shift_pending {
                         info.shift_pending = false;
-                        info.english = !info.english;
+                        if right_shift && right_shift_english {
+                            info.plain = !info.plain;
+                            info.english = info.plain;
+                        } else {
+                            info.english = !info.english;
+                            info.plain = false;
+                        }
                         commit =
                             (!self.engine.composition().is_empty()).then(|| self.engine.take_raw());
                         self.reset_composition();
@@ -88,7 +97,7 @@ impl Router {
                 } else {
                     info.shift_pending = shift && !event.modifiers.has_command_key();
                     event.modifiers.english_mode = info.english;
-                    let effect = if shift {
+                    let effect = if shift || (info.plain && right_shift_english) {
                         Effect::Passthrough
                     } else {
                         self.apply_key(&event)

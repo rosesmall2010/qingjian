@@ -1,6 +1,7 @@
 //! 能力优先级、焦点边界和薄插件事件的业务决策。
 mod support;
-use self::support::{caps, compose, event, key, router};
+use self::support::{caps, compose, event, key, router, router_with};
+use qingjian_linux_server::RouterConfig;
 use serde_json::json;
 
 #[test]
@@ -79,6 +80,51 @@ fn shift_click_and_deactivate_decisions_live_in_server() {
         );
     }
 }
+#[test]
+fn right_shift_click_toggles_plain_english() {
+    let mut router = router();
+    compose(&mut router, 1, "ni");
+    // 单击右 Shift：组着的拼音原样上屏，之后字母、标点都放行
+    key(&mut router, 1, 0xA1, None, false);
+    assert_eq!(key(&mut router, 1, 0xA1, None, true)["commit"], "ni");
+    assert_eq!(compose(&mut router, 1, "ni")["outcome"], "Passthrough");
+    assert_eq!(
+        key(&mut router, 1, ',' as u32, Some(','), false)["outcome"],
+        "Passthrough"
+    );
+    // 再单击一次回中文
+    key(&mut router, 1, 0xA1, None, false);
+    key(&mut router, 1, 0xA1, None, true);
+    assert_eq!(compose(&mut router, 1, "ni")["outcome"], "Consumed");
+    // 纯英文下单击左 Shift 也回中文
+    key(&mut router, 1, 13, None, false);
+    key(&mut router, 1, 0xA1, None, false);
+    key(&mut router, 1, 0xA1, None, true);
+    key(&mut router, 1, 16, None, false);
+    key(&mut router, 1, 16, None, true);
+    assert_eq!(compose(&mut router, 1, "ni")["outcome"], "Consumed");
+}
+
+#[test]
+fn right_shift_acts_like_shift_when_plain_english_is_off() {
+    let mut router = router_with(RouterConfig {
+        right_shift_english: false,
+        ..Default::default()
+    });
+    // 右 Shift 切到普通英文模式：字母照样进英文补全，不是纯英文的整键放行
+    key(&mut router, 1, 0xA1, None, false);
+    key(&mut router, 1, 0xA1, None, true);
+    assert_eq!(compose(&mut router, 1, "ni")["outcome"], "Consumed");
+    key(&mut router, 1, 13, None, false);
+    // 左 Shift 回中文
+    key(&mut router, 1, 16, None, false);
+    key(&mut router, 1, 16, None, true);
+    assert_eq!(
+        compose(&mut router, 1, "ni")["frame"]["candidates"]["items"][0]["text"],
+        "你"
+    );
+}
+
 #[test]
 fn focus_switches_preserve_context_text_but_reject_old_candidate_actions() {
     let mut router = router();

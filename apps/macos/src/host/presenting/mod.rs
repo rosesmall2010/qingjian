@@ -30,6 +30,14 @@ impl Host {
         self.english_candidates && !bundle.is_some_and(|b| self.apps.english_candidates_off(b))
     }
 
+    /// 进出纯英文，菜单栏状态项跟着显示「英」。组着的拼音由调用方先原样上屏。
+    pub fn set_plain_english(&mut self, plain: bool) {
+        self.plain_english = plain;
+        self.right_shift_pending = false;
+        self.indicator.set_plain(plain);
+        tracing::info!(plain, "右 Shift 纯英文");
+    }
+
     /// 开始一次翻译：记下选区，窗口先显示「翻译中…」。调用方已发出请求。
     pub fn begin_translation(&mut self, range: objc2_foundation::NSRange) {
         self.translation = Some(TranslationJob {

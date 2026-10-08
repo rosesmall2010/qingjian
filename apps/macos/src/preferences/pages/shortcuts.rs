@@ -28,6 +28,9 @@ pub struct ShortcutsPage {
     /// 没在组句时敲 `?` 也进问字。
     question_mark: Retained<NSButton>,
 
+    /// 单击右 Shift 进出纯英文。
+    right_shift_english: Retained<NSButton>,
+
     /// 上屏第一个译词的修饰键。
     translation: Retained<KeyRecorder>,
 
@@ -93,6 +96,19 @@ impl ShortcutsPage {
             layout,
             mtm,
             "勾上后 ? 先进问字（中英文模式都行），后面跟字母才是问题，跟空格、回车等其他键时还原成问号；不勾问号就是问号。",
+        );
+        layout.space(GROUP_GAP);
+        let right_shift_english = checkbox(
+            mtm,
+            "单击右 ⇧ 切换纯英文",
+            Setting::RightShiftEnglish,
+            target,
+        );
+        row_checkbox(layout, &right_shift_english);
+        note(
+            layout,
+            mtm,
+            "纯英文里青简不处理任何按键：字母、数字和标点都按英文键盘原样输入，不出候选；菜单栏显示「英」。再单击一次右 ⇧ 回到中文。",
         );
         layout.space(GROUP_GAP);
         let translation = row_recorder(
@@ -166,6 +182,7 @@ impl ShortcutsPage {
             expression,
             question,
             question_mark,
+            right_shift_english,
             translation,
             translation_second,
             delete_candidate,
@@ -194,6 +211,10 @@ impl ShortcutsPage {
                 .position(|k| *k == keys.question),
         );
         set_checked(&self.question_mark, keys.question_mark);
+        set_checked(
+            &self.right_shift_english,
+            config.shortcut.right_shift_english,
+        );
         let (first, second) = config.shortcut.translation_keys();
         self.translation.show(&first.key(), &first.label());
         self.translation_second.show(&second.key(), &second.label());

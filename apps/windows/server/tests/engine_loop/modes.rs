@@ -296,6 +296,7 @@ fn punctuation_toggle_is_remembered_per_mode() {
     router.handle(ClientMessage::ModeChanged {
         session: SESSION,
         english: false,
+        plain: false,
     });
     router.handle_status_event(StatusEvent::TogglePunctuation);
     assert_eq!(press(&mut router, comma).0, KeyOutcome::Passthrough);
@@ -303,6 +304,7 @@ fn punctuation_toggle_is_remembered_per_mode() {
     router.handle(ClientMessage::ModeChanged {
         session: SESSION,
         english: true,
+        plain: false,
     });
     assert_eq!(press(&mut router, english_comma).0, KeyOutcome::Passthrough);
     router.handle_status_event(StatusEvent::TogglePunctuation);
@@ -311,11 +313,13 @@ fn punctuation_toggle_is_remembered_per_mode() {
     router.handle(ClientMessage::ModeChanged {
         session: SESSION,
         english: false,
+        plain: false,
     });
     assert_eq!(press(&mut router, comma).0, KeyOutcome::Passthrough);
     router.handle(ClientMessage::ModeChanged {
         session: SESSION,
         english: true,
+        plain: false,
     });
     assert_eq!(press(&mut router, english_comma).1, Some("，".to_owned()));
     // 英文候选组词中敲标点：先把字母原样上屏，标点也按英文那份转。

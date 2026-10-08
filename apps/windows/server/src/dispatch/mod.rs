@@ -93,6 +93,9 @@ pub struct Router {
     /// 全局中英模式（`true` 英文），所有应用共用。DLL 切了报来，激活 / 获焦 / 轮询时取走。
     english: bool,
 
+    /// 英文模式是右 Shift 切出来的纯英文（DLL 不拦任何键），随 `english` 一起下发。
+    plain: bool,
+
     /// 当前输入法是不是青简：有 DLL 来取模式就是，切成别的输入法时收起。状态条只在这时显示；
     /// 应用退出不影响它，状态条是桌面常驻的。
     ime_active: bool,
@@ -142,6 +145,7 @@ impl Router {
             candidates: Box::new(NoopSink),
             status: Box::new(NoopStatusSink),
             english: false,
+            plain: false,
             ime_active: false,
             last_rect: None,
             last_shown: None,
@@ -160,6 +164,7 @@ impl Router {
             switch_mode: self.config.switch_mode,
             english_mode: self.config.english_mode,
             shift_letter_compose: self.config.shift_letter_compose,
+            right_shift_english: self.config.right_shift_english,
         }
     }
 

@@ -190,6 +190,6 @@ fn sync_mode(context: &PollContext) {
     super::service::on_input_settings(reply.input);
     super::service::on_indicator_state(reply.indicator);
     if let Some(english) = reply.english {
-        super::service::on_mode_sync(english);
+        super::service::on_mode_sync(english, reply.plain);
     }
 }

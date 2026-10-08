@@ -18,6 +18,7 @@ TSV 解析、查询与生成工具把 `lue` / `nue` 统一成 `lve` / `nve`。
 `CodeTable` 是形码码表（五笔），与词库并列的另一类查表：键是编码本身（`ggll`），不是拼音音节序列，
 格式 `词\t编码\t词频`（`assets/wubi/wubi86.tsv`，8.9 万条），按 `(编码, 词频降序)` 排好、`lookup` 二分定位前缀区间。
 编码打全的词（`exact`）排在同前缀的更长编码词前面，这就是一级 / 二级简码的取法，不需要另做简码表。
+`code_of` 按词反查编码（`by_text` 是按词排好的下标，一词只留最短码），给混输的拼音候选挂编码用。
 与词库的一处关键差别：码表没有 `.qj` 容器，只读 TSV。
 
 ## crates/qingjian-core
@@ -35,7 +36,10 @@ TSV 解析、查询与生成工具把 `lue` / `nue` 统一成 `lve` / `nve`。
 
 形码（五笔）在 `engine::query::code`。`Engine` 上有两个开关：`set_code_table`（码表）与 `set_phonetic`（拼音侧参不参与），
 在 `query_inner` 进切分之前按这两个分派——只有拼音 / 只有形码（`query_code`）/ **两边都开（`query_mixed`，混输）**。
-编码按前缀查表，`CandidateKind::Code` 的候选 `syllables` 为空、上屏吃掉整段作用域（`whole_scope`）。
+编码按前缀查表，`CandidateKind::Code` 的候选 `syllables` 为空、上屏吃掉整段作用域（`whole_scope`）；
+`reading` 填词的编码，壳照画读音的老路画在译文前面（macOS / Windows 候选窗、Linux fcitx5 注释），不另加字段与开关；
+编码一律用 `CodeTable::code_of` 反查、一词多码取最短的简码（敲 `aaa` 命中 工 的全码，显示的仍是 `a`），
+混输时拼音那边出的词同样反查，码表里没有、或已有读音（emoji）的不挂。
 混输是「拼音那条 Query 前面插上形码候选」：拼音读不出来时（`ggll`）整个按形码走，两边都空才算错；
 按文本去重，编码打全的形码词在前、拼音居中、只命中前缀的形码词垫后（一律形码在前的话 `kai` 的首选会变成编码 `kaik` 的词）；混输下模式键同双拼换成大写，四码以内不做拼写纠错，且五笔码最长 4 位、第 5 个字母起自然只剩拼音。
 拼音那套在纯形码下全部不适用，靠 `modes()` 返回 `ModeKeys::LETTERLESS` 与 `active_correction` 直接返回 `None` 关掉；
@@ -173,13 +177,14 @@ P2C 自由生成实验：`--eval-text <集> --eval-generate data/models/hanzhang
 
 `Config`（TOML 配置文件，`[general]` / `[shortcut]` / `[fuzzy]` / `[dictionaries]` / `[apps]` / `[predict]` 分节，首次运行写模板，
 `set_value` 用 toml_edit 原地改键保留注释；`[model] enabled` 本地整句模型开关，`LocalModelConfig`；
-中英模式两项：`[shortcut] switch_mode`（`SwitchKeys`：勾选 shift / control / ctrl+alt+space，可多选，老配置的单个字符串照读）与 `[general] english_mode`（内置英文模式总开关））；
+中英模式两项：`[shortcut] switch_mode`（`SwitchKeys`：勾选 shift / control / ctrl+alt+space，可多选，老配置的单个字符串照读）与 `[general] english_mode`（内置英文模式总开关）；
+`[shortcut] right_shift_english`（缺省开，三个平台）单击右 Shift 进出纯英文，壳一键不拦，开着时 `switch_mode` 的单击 Shift 只认左 Shift）；
 `extra_dictionaries` 列出 / 加载随包领域词库与用户 `dicts/`
 （mac 壳与 Windows Server 共用，同名 `.qj` 优先于 `.tsv`）；`code_tables` 同构地列出 / 加载随包根 `codes/` 与用户 `codes/` 的码表
 （`[aux_code] disabled` 是黑名单，`[general] aux_code_key` 缺省 `;` 且校验后退回缺省、`aux_code_show` 是显示码开关）；
 `protocol` 模块是 Windows Server ↔ TSF DLL 的 IPC 协议类型
 （`ClientMessage` / `ServerMessage` / `Frame` / `PreeditSegment`，全 serde，两端共用，见 `docs/design/architecture.md`「Windows：TSF」；
-`PROTOCOL_VERSION` = 7（v7 加任务栏图标右键菜单的 `Indicator`），`PreeditKind::AuxCode` 对应 Core 的 `MarkedKind::AuxCode`，`Frame.aux_code_show` 随帧下发显示码开关）。
+`PROTOCOL_VERSION` = 7（v7 加任务栏图标右键菜单的 `Indicator`；之后加的 `InputSettings.right_shift_english`、`ModeChanged.plain`、`ModeSync.plain` 都带 serde 缺省值，不升版本），`PreeditKind::AuxCode` 对应 Core 的 `MarkedKind::AuxCode`，`Frame.aux_code_show` 随帧下发显示码开关）。
 
 ## crates/qingjian-render
 
@@ -248,6 +253,10 @@ IMK 输入法，源码按 `app / host / imk / candidates / menubar / preferences
 - 本地整句模型：`bundle.sh` 把 `data/models/hanzhang-tongbian/`（或 `QINGJIAN_P2C_MODEL_DIR`）打进 `Resources/models/hanzhang-tongbian/`，通变优先；知微放 `Resources/models/hanzhang-zhiwei/` 作回退，用户目录的对应模型优先于随包同类模型，旧用户目录仍可读取。`host/model/mod.rs` 在后台线程加载并预热（首次 Metal 编译）后
   `set_async_sentence_scorer` 接上，`refresh` 每键先读应用光标前 64 字给 Engine 当前文、查询后 `schedule_rescoring`，`RescoreMonitor` 停键 80 ms 请求、20 ms 轮询，
   结果到了重查一次只重画当前页（翻过页 / 动过高亮不动）；「云服务」页有开关（`[model] enabled`）。
+- 单击右 Shift 纯英文（`imk/controller/plain.rs`，「快捷键」页有勾选框）：`recognizedEvents:` 固定多要 FlagsChanged 与 LeftMouseDown（不随配置变，开关在收到事件后再看）——
+  修饰键单独按下抬起不是 KeyDown；而一旦不只要 KeyDown，IMK 就不再替输入法做「点组句区外面就落定」，所以鼠标按下自己 `commit_raw`。
+  右 Shift 只认键码 60 加 Shift 标志：IMK 转来的事件不一定带区分左右的设备位，靠它判断会一直认不出来。
+  状态 `Host.plain_english` 全局一份，进了之后 `dispatch_event` 对 KeyDown 一律返回 false，菜单栏状态项显示「英」，切换记一条 info 日志。
 - 端到端验证可用 `osascript` 的 System Events 往 TextEdit 发按键再读回文本（终端需要辅助功能权限；输入法得在中文模式）。
 
 ## apps/windows
@@ -270,6 +279,9 @@ Server 侧辅码接线：`RouterConfig.aux_code_key` / `aux_code_show`（`apply_
 各进程都是同样那几个值，拿它当会话号会在 Server 那边撞号。四条切换入口都汇到
 `service/mode.rs::set_english_mode` 一处拦住；状态条点击在 Server 侧（`dispatch/status/mod.rs`）按同一项拦，
 设置界面在 `settings/src/panel/pages/general.rs`。
+单击右 Shift 纯英文（`[shortcut] right_shift_english`，随 `InputSettings` 下发，设置界面没有勾选框）：TSF 送来的多是不分左右的 `VK_SHIFT`，
+`com/key/tap.rs` 按 lparam 扫描码 0x36 认右 Shift；纯英文是英文模式的一个子状态（`ModeState.plain`），`would_eat` 除翻译评审外一键不吃，
+随 `ModeChanged.plain` / `ModeSync.plain` 与 Server 的 `Router.plain` 同步成全局一份；其他任何切换入口都清掉它，内置英文模式关着时进不去。
 
 TSF 原有数字 / OEM 标点 / 空格键码按当前布局用 `ToUnicodeEx` 解析（bit 2 避免改变键盘状态），
 仅接受单个非代理项 UTF-16 单元。字母、小键盘和 AltGr 处理不变，不保证组合音符输入。
@@ -338,6 +350,8 @@ DLL 不读文件、不查 mtime。`SessionOpened` 只回过协议版本对得上
 `qingjian-linux-server` 为独立产品 `0.1.0-dev`，装配本地 Engine、词库、释义、频率学习、个人 n-gram、词汇记录与可选输入日志，
 本地整句模型优先加载用户 `~/.local/share/qingjian/models/hanzhang-tongbian/` 或随包 `data/models/hanzhang-tongbian/`，缺失时回退 `models/hanzhang-zhiwei/`；旧用户目录兼容读取。按 `[model] enabled` 在后台加载、停键 80 ms 后重排，节拍与 Windows Server 的 `dispatch/rescore` 相同；不接云服务。`dispatch/session` 交换每个上下文的 EngineSession；真正的能力变化丢弃输入，普通焦点切换隔离保存。
 默认面板插件仅转换事件，Shift 模式、候选点击、分页和失焦提交都由 Server 决定。
+插件把右 Shift 报成 VK_RSHIFT（0xA1）、其余 Shift 报成 VK_SHIFT（0x10）；`[shortcut] right_shift_english` 开着时单击右 Shift 切 `SessionInfo.plain`（纯英文，键一律 Passthrough），关着时与左 Shift 一样切中英。
+输入方案在 `assembly::apply_scheme` 启动时装配一次（Linux 没有配置热加载）：拼音侧与五笔两条轴同 Windows，码表用户目录 `wubi/wubi86.tsv` 优先、随包 `assets/wubi/` 兜底（`files.py` / `package.sh` 带上 `assets/wubi`）。
 
 Unix socket 用共享长度前缀与 Frame（当前公共版本 7，与 `PROTOCOL_VERSION` 同步，Fcitx5 插件里写死在 `qingjian.cpp` 的 OpenSession）；插件复用一条连接，每个上下文独立会话。Linux v3 扩展逐会话握手、确认 Sensitive/Password/Disable 后接受按下/释放、焦点和点击事实。
 候选回报绑定连接代次、上下文和服务端帧序号，仅当前聚焦页的有效释义进入 `note_displayed`，不把生成帧算作已展示。

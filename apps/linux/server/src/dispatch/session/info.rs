@@ -18,6 +18,9 @@ pub(crate) struct SessionInfo {
     /// Server 持有的中英模式与单击 Shift 状态。
     pub(crate) english: bool,
 
+    /// 英文模式是右 Shift 切出来的纯英文：键一律放行，字母与标点原样交给应用。
+    pub(crate) plain: bool,
+
     pub(crate) shift_pending: bool,
 
     /// 最近的框架能力，首次报告前为未知。
@@ -48,6 +51,7 @@ impl SessionInfo {
         Self {
             app,
             english: false,
+            plain: false,
             shift_pending: false,
             capabilities: None,
             disabled: false,

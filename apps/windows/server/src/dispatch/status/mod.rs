@@ -16,9 +16,10 @@ pub use self::view::StatusView;
 use super::Router;
 
 impl Router {
-    /// DLL 那边用户切了模式：成为全局模式。内置英文模式关着时不收英文。
-    pub(super) fn handle_mode_changed(&mut self, english: bool) {
+    /// DLL 那边用户切了模式：成为全局模式。内置英文模式关着时不收英文；`plain` 是右 Shift 切出来的纯英文。
+    pub(super) fn handle_mode_changed(&mut self, english: bool, plain: bool) {
         self.english = english && self.config.english_mode;
+        self.plain = self.english && plain && self.config.right_shift_english;
         self.ime_active = true;
         self.reconcile_status();
     }
@@ -27,6 +28,10 @@ impl Router {
     pub(super) fn handle_ime_active(&mut self) {
         if !self.config.english_mode {
             self.english = false;
+        }
+        // 配置关掉了右 Shift 纯英文：退回普通英文模式，免得停在一个切不回去的状态
+        if !self.english || !self.config.right_shift_english {
+            self.plain = false;
         }
         if !self.ime_active {
             self.ime_active = true;
@@ -49,6 +54,7 @@ impl Router {
                     return;
                 }
                 self.english = !self.english;
+                self.plain = false;
                 tracing::debug!(english = self.english, "状态条：切换中英模式");
             }
             StatusEvent::TogglePunctuation => {

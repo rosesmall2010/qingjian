@@ -6,4 +6,4 @@ mod layout;
 pub(crate) mod preserved;
 mod tap;
 
-pub(crate) use self::tap::KeyTap;
+pub(crate) use self::tap::{KeyTap, Tap, TapKeys};

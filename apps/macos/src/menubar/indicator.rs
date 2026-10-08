@@ -41,6 +41,9 @@ pub struct ModeIndicator {
     /// 云联想开着：标题带云朵，让用户一眼知道上下文会发出去。
     cloud: bool,
 
+    /// 右 Shift 切出来的纯英文：Caps Lock 没亮也显示「英」。
+    plain: bool,
+
     mtm: MainThreadMarker,
 }
 
@@ -56,6 +59,7 @@ impl ModeIndicator {
             shown: false,
             english: None,
             cloud: false,
+            plain: false,
             mtm,
         }
     }
@@ -131,12 +135,17 @@ impl ModeIndicator {
         self.english = None;
     }
 
-    /// 按当前 Caps Lock 状态刷新标题；收起时不动。
+    pub fn set_plain(&mut self, plain: bool) {
+        self.plain = plain;
+        self.update();
+    }
+
+    /// 按当前 Caps Lock 状态与纯英文刷新标题；收起时不动。
     pub fn update(&mut self) {
         if !self.shown {
             return;
         }
-        let english = modifiers::caps_lock_on();
+        let english = self.plain || modifiers::caps_lock_on();
         if self.english == Some(english) {
             return;
         }

@@ -14,7 +14,7 @@ use super::next::Next;
 use crate::client::KeyReply;
 use crate::com::composition::preedit_string;
 use crate::com::key::event::{digit_key, is_edit, is_letter, is_mode_letter, is_nav, to_key_event};
-use crate::com::key::preserved;
+use crate::com::key::{Tap, preserved};
 use crate::com::log::log;
 
 impl ITfKeyEventSink_Impl for TextService_Impl {
@@ -49,13 +49,13 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
         Ok(self.handle_key(pic, event).into())
     }
 
-    fn OnTestKeyUp(&self, _pic: Ref<ITfContext>, wparam: WPARAM, _lparam: LPARAM) -> Result<BOOL> {
-        self.note_key_up(wparam.0 as u32);
+    fn OnTestKeyUp(&self, _pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
+        self.note_key_up(wparam.0 as u32, lparam);
         Ok(FALSE)
     }
 
-    fn OnKeyUp(&self, _pic: Ref<ITfContext>, wparam: WPARAM, _lparam: LPARAM) -> Result<BOOL> {
-        self.note_key_up(wparam.0 as u32);
+    fn OnKeyUp(&self, _pic: Ref<ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
+        self.note_key_up(wparam.0 as u32, lparam);
         Ok(FALSE)
     }
 
@@ -105,15 +105,17 @@ impl TextService_Impl {
 
     fn note_key_down(&self, vk: u32, lparam: LPARAM) {
         self.key_tap
-            .key_down(vk, lparam, self.mode_state.switch_keys());
+            .key_down(vk, lparam, self.mode_state.tap_keys());
     }
 
-    fn note_key_up(&self, vk: u32) {
+    fn note_key_up(&self, vk: u32, lparam: LPARAM) {
         if vk == u32::from(VK_CAPITAL.0) {
             self.mode_state.notify();
         }
-        if self.key_tap.key_up(vk, self.mode_state.switch_keys()) {
-            self.set_english_mode(!self.mode_state.english());
+        match self.key_tap.key_up(vk, lparam, self.mode_state.tap_keys()) {
+            Some(Tap::Switch(_)) => self.set_english_mode(!self.mode_state.english()),
+            Some(Tap::RightShift) => self.toggle_plain_english(),
+            None => {}
         }
     }
 
@@ -125,6 +127,10 @@ impl TextService_Impl {
     /// 组句中功能键 / 方向键 / 可打印字符都吃；没在组句时数字 / 标点也先「测吃」送去转全角（中英各有一份开关），
     /// Server 不转的回 Passthrough 再放行；`?` 是问字前缀。
     fn would_eat(&self, event: &KeyEvent) -> bool {
+        // 右 Shift 切出来的纯英文：除翻译评审外一键不吃，字母与标点由键盘布局原样交给应用
+        if self.mode_state.plain() && !self.shared.translating() {
+            return false;
+        }
         let shift_letter_compose = self
             .input_settings
             .get()

@@ -43,6 +43,9 @@ pub struct RouterConfig {
 
     /// 删候选的修饰键（`[shortcut] delete_candidate`）。
     pub delete_keys: KeyModifiers,
+
+    /// 单击右 Shift 切纯英文（`[shortcut] right_shift_english`）；关着时右 Shift 与左 Shift 一样切中英。
+    pub right_shift_english: bool,
 }
 
 impl RouterConfig {
@@ -71,6 +74,7 @@ impl From<&Config> for RouterConfig {
                 (first.into(), second.into())
             },
             delete_keys: config.shortcut.delete_keys().into(),
+            right_shift_english: config.shortcut.right_shift_english,
         }
     }
 }

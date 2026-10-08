@@ -30,6 +30,10 @@ impl Host {
         logging::set_level(config.general.log_level);
         self.translation_keys = config.shortcut.translation_keys();
         self.delete_keys = config.shortcut.delete_keys();
+        self.right_shift_english = config.shortcut.right_shift_english;
+        if !self.right_shift_english && self.plain_english {
+            self.set_plain_english(false);
+        }
         self.translate_keys = config.shortcut.translate_selection;
         self.page_size = config.general.page_size();
         self.cloud_slots = config.predict.slots;
