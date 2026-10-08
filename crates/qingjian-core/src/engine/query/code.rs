@@ -66,7 +66,8 @@ impl Engine {
                 kind: CandidateKind::Code,
                 // 编码不是拼音音节：候选窗按音节高亮的部分对形码没有意义，留空
                 syllables: Vec::new(),
-                reading: None,
+                // 编码当读音提示，壳画在译文前面；一词多码给最短的，与混输里拼音出的词一致
+                reading: table.code_of(s.hit.text).map(str::to_owned),
                 translation: None,
                 aux_code: None,
             })
@@ -118,11 +119,22 @@ impl Engine {
         let mut prefixed = code.candidates.items;
         let exact = exact.min(prefixed.len());
         let tail = prefixed.split_off(exact);
+        let table = self.code.as_ref().expect("只在混输下调用");
+        // 拼音那边出的词码表里也有的话，同样挂上编码（最短的那条）；emoji 等已有读音的不动
+        let phonetic =
+            std::mem::take(&mut query.candidates.items)
+                .into_iter()
+                .map(|mut candidate| {
+                    if candidate.reading.is_none() {
+                        candidate.reading = table.code_of(&candidate.text).map(str::to_owned);
+                    }
+                    candidate
+                });
         // 同一个词可能两边都命中，按文本去重，靠前的那条留着
         let mut seen: HashSet<String> = HashSet::new();
         let combined: Vec<Candidate> = prefixed
             .into_iter()
-            .chain(std::mem::take(&mut query.candidates.items))
+            .chain(phonetic)
             .chain(tail)
             .filter(|candidate| seen.insert(candidate.text.clone()))
             .take(MAX_CANDIDATES)

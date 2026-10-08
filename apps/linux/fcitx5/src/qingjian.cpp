@@ -316,11 +316,18 @@ void QingjianEngine::render(InputContext *context, const nlohmann::json &frame) 
     for (const auto &item : items) {
         std::string annotation;
         auto text = item.at("text").get<std::string>();
+        // 读音提示（五笔编码、问字的带调拼音、emoji 对应的词）在译文前面，与 macOS / Windows 候选窗一致
+        const auto reading = item.find("reading");
+        if (!text.empty() && reading != item.end() && reading->is_string()) annotation = reading->get<std::string>();
         const auto &translation = item.at("translation");
         if (!text.empty() && translation.is_object() && !translation.at("senses").empty()) {
             const auto &sense = translation.at("senses").front();
-            annotation = sense.at("text").get<std::string>();
-            if (!annotation.empty()) senses.push_back({index, 0});
+            const auto gloss = sense.at("text").get<std::string>();
+            if (!gloss.empty()) {
+                senses.push_back({index, 0});
+                if (!annotation.empty()) annotation += " · ";
+                annotation += gloss;
+            }
             if (sense.value("fresh", false)) annotation += " · 生";
         }
         list->append(std::make_unique<qingjian::Word>(text, annotation, [this, alive = alive_, watched, index, revision, identity](InputContext *ic) {

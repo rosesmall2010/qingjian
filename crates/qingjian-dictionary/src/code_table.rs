@@ -39,6 +39,9 @@ pub struct CodeTable {
     /// 按编码字节序升序，同一个编码下按词频降序。
     entries: Vec<Entry>,
 
+    /// 按词反查用：`entries` 的下标按词排好，一个词只留最短的那条编码（简码）。
+    by_text: Vec<u32>,
+
     /// 全部词频之和，上下文得分的兜底用。
     total_frequency: u64,
 }
@@ -91,9 +94,19 @@ impl CodeTable {
         // 同一个词记了两遍（不同码表版本合并）留词频高的那条，排完序就是靠前的那条
         entries.dedup_by(|a, b| a.code == b.code && a.text == b.text);
         let total_frequency = entries.iter().map(|e| u64::from(e.frequency)).sum();
+        let mut by_text: Vec<u32> = (0..entries.len() as u32).collect();
+        by_text.sort_by(|&a, &b| {
+            let (a, b) = (&entries[a as usize], &entries[b as usize]);
+            a.text
+                .cmp(&b.text)
+                .then_with(|| a.code.len().cmp(&b.code.len()))
+                .then_with(|| a.code.cmp(&b.code))
+        });
+        by_text.dedup_by(|a, b| entries[*a as usize].text == entries[*b as usize].text);
         tracing::debug!(entries = entries.len(), "码表加载完成");
         Ok(Self {
             entries,
+            by_text,
             total_frequency,
         })
     }
@@ -136,6 +149,15 @@ impl CodeTable {
                 exact: entry.code == code,
             })
             .collect()
+    }
+
+    /// 词的编码：一词多码时取最短的（`工` 有 `a` 与 `aaaa`，给 `a`）；码表里没有这个词时为 `None`。
+    pub fn code_of(&self, text: &str) -> Option<&str> {
+        let position = self
+            .by_text
+            .partition_point(|&i| self.entries[i as usize].text.as_str() < text);
+        let entry = &self.entries[*self.by_text.get(position)? as usize];
+        (entry.text == text).then_some(entry.code.as_str())
     }
 
     /// 全部词频之和。
@@ -207,6 +229,17 @@ mod tests {
     fn rejects_lines_without_a_code() {
         assert!(CodeTable::parse("开发\n").is_err());
         assert!(CodeTable::parse("开发\tgant\t不是数字\n").is_err());
+    }
+
+    #[test]
+    fn looks_up_the_shortest_code_of_a_word() {
+        let table =
+            CodeTable::parse("工\taaaa\t100\n工\ta\t100\n开发\tgant\t900\n开\tga\t5000\n").unwrap();
+        assert_eq!(table.code_of("工"), Some("a"));
+        assert_eq!(table.code_of("开发"), Some("gant"));
+        assert_eq!(table.code_of("开"), Some("ga"));
+        assert_eq!(table.code_of("发"), None);
+        assert_eq!(CodeTable::default().code_of("工"), None);
     }
 
     #[test]

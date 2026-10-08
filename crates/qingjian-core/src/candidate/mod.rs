@@ -35,7 +35,7 @@ pub struct Candidate {
     /// 该候选对应的拼音音节，供平台层高亮已匹配部分。
     pub syllables: Vec<String>,
 
-    /// 读音（如日语假名），中文候选暂不使用。
+    /// 读音提示，壳画在译文前面：问字答案的带调拼音、emoji 对应的词、开着五笔时词的五笔编码。
     pub reading: Option<String>,
 
     /// 学习语言下的译文；查不到或尚未就绪时为 `None`。

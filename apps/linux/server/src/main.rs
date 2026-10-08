@@ -77,9 +77,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
     engine.set_fuzzy(config.fuzzy);
-    engine.set_shuangpin(config.general.shuangpin());
+    // 拼音侧（全拼 / 双拼 / 注音）与五笔一起装配，两边都开是混输
+    assembly::apply_scheme(
+        &mut engine,
+        &config.general,
+        assembly::find_code_table(Some(&user_dir), &root).as_deref(),
+    );
     engine.set_shuangpin_raw_preedit(config.general.shuangpin_raw_preedit);
-    engine.set_zhuyin_mode(config.general.is_zhuyin());
     engine.set_shift_letter_compose(config.general.shift_letter.compose());
     engine.set_learning(config.general.learning);
     engine.set_chinese_first(config.general.chinese_first);

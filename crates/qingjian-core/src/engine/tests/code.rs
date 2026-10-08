@@ -109,6 +109,53 @@ fn code_candidates_get_translations_like_pinyin_ones() {
 }
 
 #[test]
+fn code_candidates_carry_their_full_code_as_the_reading() {
+    // 壳把 reading 画在译文前面：敲前缀也能看到每个词的全码
+    let mut engine = mixed();
+    engine.set_input("ga");
+    let items = engine.query().unwrap().candidates.items;
+    let reading = |text: &str| {
+        items
+            .iter()
+            .find(|c| c.text == text)
+            .and_then(|c| c.reading.as_deref())
+    };
+    assert_eq!(reading("开"), Some("ga"));
+    assert_eq!(reading("开发"), Some("gant"));
+}
+
+#[test]
+fn a_word_with_several_codes_shows_the_shortest() {
+    // 工 有一级简码 `a` 与全码 `aaaa`：敲 `aaa` 命中的是全码那条，显示的仍是最省键的 `a`
+    let mut engine = engine();
+    engine.set_code_table(Some(
+        CodeTable::parse("工\ta\t100\n工\taaaa\t100\n").unwrap(),
+    ));
+    engine.set_phonetic(false);
+    engine.set_input("aaa");
+    let items = engine.query().unwrap().candidates.items;
+    assert_eq!(items[0].text, "工");
+    assert_eq!(items[0].reading.as_deref(), Some("a"));
+}
+
+#[test]
+fn pinyin_candidates_found_in_the_code_table_show_their_code_too() {
+    // 混输下拼音出的词码表里有，同样挂上编码；码表里没有的词不挂
+    let mut engine = mixed();
+    engine.set_input("kaifa");
+    let items = engine.query().unwrap().candidates.items;
+    let kaifa = items.iter().find(|c| c.text == "开发").unwrap();
+    assert_eq!(kaifa.kind, CandidateKind::Chinese);
+    assert_eq!(kaifa.reading.as_deref(), Some("gant"));
+    assert!(
+        items
+            .iter()
+            .filter(|c| c.kind == CandidateKind::Chinese && c.text != "开发" && c.text != "开")
+            .all(|c| c.reading.is_none())
+    );
+}
+
+#[test]
 fn code_commits_still_feed_translations_vocabulary_and_usage() {
     // 形码换的是「怎么按键出候选」，不是「上屏之后算什么」：释义标注、生词判定、词汇记录与输入统计
     // 都按上屏的词工作，与方案无关。这条用例把这句话钉住。

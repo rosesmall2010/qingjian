@@ -33,7 +33,7 @@ pub struct Row {
 impl Row {
     pub fn from_candidate(position: usize, candidate: &Candidate) -> Self {
         let mut annotation = Vec::new();
-        // 读音（问字模式答案的带声调拼音）放在最前
+        // 读音（问字模式答案的带声调拼音、开着五笔时的五笔编码）放在最前
         if let Some(reading) = &candidate.reading {
             annotation.push((reading.clone(), Tone::Gloss));
         }

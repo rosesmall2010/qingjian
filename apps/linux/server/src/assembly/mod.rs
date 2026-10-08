@@ -1,6 +1,7 @@
 //! 装配 Engine：Server 里唯一知道具体 Translator / Learner 类型的地方，装的东西与 macOS 的 `host::init` 一致。
 
 mod language_model;
+mod scheme;
 mod spec;
 
 use std::path::Path;
@@ -15,6 +16,7 @@ use qingjian_translate::{Glossary, LayeredTranslator, LevelTable, PersonalGlossa
 use crate::error::ServerError;
 
 pub use self::language_model::LanguageModelFiles;
+pub use self::scheme::{apply_scheme, find_code_table};
 pub use self::spec::AssemblySpec;
 
 pub fn assemble(spec: &AssemblySpec) -> Result<Engine, ServerError> {

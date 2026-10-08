@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
     assert(context.inputPanel().preedit().empty() == (mode == "inline"));
     auto candidates = context.inputPanel().candidateList();
     assert(candidates && candidates->size() == 3 && candidates->toPageable()->hasNext());
-    assert(candidates->candidate(2).comment().toString() == "hello · 生");
+    assert(candidates->candidate(2).comment().toString() == "wqvb · hello · 生");
     candidates->candidate(0).select(&context);
     assert(context.committed.empty());
     if (mode == "failure") {
